@@ -540,6 +540,113 @@ public class CUE4ParseViewModel : ViewModel
     public void AnimationFolder(CancellationToken cancellationToken, TreeItem folder)
         => BulkFolder(cancellationToken, folder, asset => Extract(cancellationToken, asset, TabControl.HasNoTabs, EBulkType.Animations | EBulkType.Auto));
 
+    public void ExportMeshMaterialMapping(CancellationToken cancellationToken, string outputPath)
+    {
+        try
+        {
+            var mapper = new Creator.Exporters.MeshMaterialTextureMapper();
+            
+            // 遍历所有已加载的文件
+            foreach (var file in Provider.Files)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // 只处理资源文件
+                if (!file.Value.Path.EndsWith(".uasset") && !file.Value.Path.EndsWith(".umap"))
+                    continue;
+
+                try 
+                {
+                    var result = Provider.GetLoadPackageResult(file.Value);
+                    if (result?.Package != null)
+                    {
+                        mapper.ProcessPackage(result.Package);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Failed to process file {file.Value.Path}: {ex.Message}");
+                    continue;
+                }
+            }
+
+            mapper.ExportToCsv(outputPath);
+
+            Log.Information("Successfully exported mesh-material mapping");
+            FLogger.Append(ELog.Information, () =>
+            {
+                FLogger.Text("Successfully exported ", Constants.WHITE);
+                FLogger.Link("mesh-material mapping", outputPath, true);
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to export mesh-material mapping");
+            FLogger.Append(ELog.Error, () =>
+                FLogger.Text($"Failed to export mesh-material mapping: {ex.Message}", Constants.WHITE, true));
+        }
+    }
+
+    public void ExportFolderMeshMaterialMapping(CancellationToken cancellationToken, TreeItem folder, string outputPath)
+    {
+        try
+        {
+            var mapper = new Creator.Exporters.MeshMaterialTextureMapper();
+            
+            BulkFolder(cancellationToken, folder, entry =>
+            {
+                if (!entry.Path.EndsWith(".uasset") && !entry.Path.EndsWith(".umap"))
+                    return;
+
+                try 
+                {
+                    var result = Provider.GetLoadPackageResult(entry);
+                    if (result?.Package != null)
+                    {
+                        // 检查包中是否包含 StaticMesh 或 SkeletalMesh
+                        bool hasMesh = false;
+                        for (var i = 0; i < result.Package.ExportMapLength; i++)
+                        {
+                            var pointer = new FPackageIndex(result.Package, i + 1).ResolvedObject;
+                            if (pointer?.Object is null) continue;
+
+                            var dummy = ((AbstractUePackage)result.Package).ConstructObject(pointer.Class?.Object?.Value as UStruct, result.Package);
+                            if (dummy is UStaticMesh or USkeletalMesh)
+                            {
+                                hasMesh = true;
+                                break;
+                            }
+                        }
+
+                        if (hasMesh)
+                        {
+                            mapper.ProcessPackage(result.Package);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Failed to process file {entry.Path}: {ex.Message}");
+                }
+            });
+
+            mapper.ExportToCsv(outputPath);
+
+            Log.Information("Successfully exported mesh-material mapping for folder {Folder}", folder.Header);
+            FLogger.Append(ELog.Information, () =>
+            {
+                FLogger.Text($"Successfully exported mesh-material mapping for folder '{folder.Header}' to ", Constants.WHITE);
+                FLogger.Link("CSV file", outputPath, true);
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to export mesh-material mapping for folder {Folder}", folder.Header);
+            FLogger.Append(ELog.Error, () =>
+                FLogger.Text($"Failed to export mesh-material mapping for folder '{folder.Header}': {ex.Message}", Constants.WHITE, true));
+        }
+    }
+
     public void Extract(CancellationToken cancellationToken, GameFile entry, bool addNewTab = false, EBulkType bulk = EBulkType.None)
     {
         Log.Information("User DOUBLE-CLICKED to extract '{FullPath}'", entry.Path);

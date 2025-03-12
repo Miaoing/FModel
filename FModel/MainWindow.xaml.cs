@@ -289,4 +289,46 @@ public partial class MainWindow
                 break;
         }
     }
+
+    private async void ExportMeshMaterialMapping_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_applicationView.Status.IsReady) return;
+
+        var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "CSV files (*.csv)|*.csv",
+            DefaultExt = "csv",
+            FileName = "mesh_material_mapping.csv",
+            InitialDirectory = UserSettings.Default.ModelDirectory
+        };
+
+        if (saveFileDialog.ShowDialog() == true)
+        {
+            await _threadWorkerView.Begin(cancellationToken => 
+            { 
+                _applicationView.CUE4Parse.ExportMeshMaterialMapping(cancellationToken, saveFileDialog.FileName); 
+            });
+        }
+    }
+
+    private async void OnFolderMeshMaterialMappingClick(object sender, RoutedEventArgs e)
+    {
+        if (!_applicationView.Status.IsReady || AssetsFolderName.SelectedItem is not TreeItem folder) return;
+
+        var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "CSV files (*.csv)|*.csv",
+            DefaultExt = "csv",
+            FileName = $"{folder.Header}_mesh_material_mapping.csv",
+            InitialDirectory = UserSettings.Default.ModelDirectory
+        };
+
+        if (saveFileDialog.ShowDialog() == true)
+        {
+            await _threadWorkerView.Begin(cancellationToken => 
+            { 
+                _applicationView.CUE4Parse.ExportFolderMeshMaterialMapping(cancellationToken, folder, saveFileDialog.FileName); 
+            });
+        }
+    }
 }
