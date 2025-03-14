@@ -11,6 +11,7 @@ using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
 using FModel.Creator.Exporters.Models;
 using CUE4Parse.UE4.Assets;
 using Serilog;
+using System.Text;
 
 namespace FModel.Creator.Exporters
 {
@@ -106,6 +107,12 @@ namespace FModel.Creator.Exporters
                 var parameters = new CMaterialParams2();
                 material.GetParams(parameters, EMaterialFormat.FirstLayer);
 
+                // 收集所有贴图路径
+                foreach (var texture in parameters.Textures)
+                {
+                    entry.AllTexturePaths.Add(GetObjectName(texture.Value.GetPathName()));
+                }
+
                 // 对于 Diffuse，按照优先级尝试三种来源
                 if (parameters.HasTopDiffuse)
                 {
@@ -127,10 +134,20 @@ namespace FModel.Creator.Exporters
                     {
                         entry.DiffuseTexturePath = GetObjectName(fallbackTexture.GetPathName());
                     }
-                    // 3. 如果还是没有，使用第一个可用的贴图
+                    // 3. 如果还是没有，使用第一个可用的贴图，但要确保它不是 normal 贴图
                     else if (parameters.TryGetFirstTexture2d(out var firstTexture))
                     {
-                        entry.DiffuseTexturePath = GetObjectName(firstTexture.GetPathName());
+                        // 使用 VerifyTexture 方法检查贴图是否是 normal 贴图
+                        // 创建一个临时的 CMaterialParams2 对象来测试贴图类型
+                        var tempParams = new CMaterialParams2();
+                        bool isNormalTexture = tempParams.VerifyTexture(firstTexture.Name, firstTexture, false, EMaterialSamplerType.SAMPLERTYPE_Normal);
+                        
+                        // 如果 VerifyTexture 返回 true，说明它是 normal 贴图
+                        // 如果返回 false，说明它不是 normal 贴图
+                        if (!isNormalTexture)
+                        {
+                            entry.DiffuseTexturePath = GetObjectName(firstTexture.GetPathName());
+                        }
                     }
                 }
 
@@ -173,12 +190,42 @@ namespace FModel.Creator.Exporters
                 Directory.CreateDirectory(directory);
             }
 
-            using var writer = new StreamWriter(outputPath);
-            writer.WriteLine("MeshPath,MaterialPath,DiffuseTexturePath,NormalTexturePath");
-
+            // 找出所有条目中最大的贴图数量
+            int maxTextureCount = 0;
             foreach (var entry in _entries)
             {
-                writer.WriteLine($"{entry.MeshPath},{entry.MaterialPath},{entry.DiffuseTexturePath},{entry.NormalTexturePath}");
+                maxTextureCount = Math.Max(maxTextureCount, entry.AllTexturePaths.Count);
+            }
+
+            using var writer = new StreamWriter(outputPath);
+            
+            // 写入标题行
+            var headerBuilder = new StringBuilder("MeshPath,MaterialPath,DiffuseTexturePath,NormalTexturePath");
+            for (int i = 1; i <= maxTextureCount; i++)
+            {
+                headerBuilder.Append($",Tex{i}");
+            }
+            writer.WriteLine(headerBuilder.ToString());
+
+            // 写入数据行
+            foreach (var entry in _entries)
+            {
+                var lineBuilder = new StringBuilder($"{entry.MeshPath},{entry.MaterialPath},{entry.DiffuseTexturePath},{entry.NormalTexturePath}");
+                
+                // 添加所有贴图路径
+                for (int i = 0; i < maxTextureCount; i++)
+                {
+                    if (i < entry.AllTexturePaths.Count)
+                    {
+                        lineBuilder.Append($",{entry.AllTexturePaths[i]}");
+                    }
+                    else
+                    {
+                        lineBuilder.Append(",");
+                    }
+                }
+                
+                writer.WriteLine(lineBuilder.ToString());
             }
         }
     }
