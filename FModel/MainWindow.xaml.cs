@@ -82,14 +82,24 @@ public partial class MainWindow
             })
         ).ConfigureAwait(false);
 
-#if DEBUG
-        // await _threadWorkerView.Begin(cancellationToken =>
-        //     _applicationView.CUE4Parse.Extract(cancellationToken,
-        //         _applicationView.CUE4Parse.Provider["Marvel/Content/Marvel/Characters/1050/1050300/Meshes/SK_1050_1050300_Lobby.uasset"]));
-        // await _threadWorkerView.Begin(cancellationToken =>
-        //     _applicationView.CUE4Parse.Extract(cancellationToken,
-        //         "RED/Content/Chara/ABA/Costume01/Animation/Charaselect/body/stand_body01.uasset"));
-#endif
+        // 等待额外的2秒确保完全加载
+        await Task.Delay(2000);
+
+        // 确保在UI线程上执行
+        await Dispatcher.InvokeAsync(async () =>
+        {
+            // 执行LoadAll
+            if (_applicationView.Status.IsReady)
+            {
+                OnLoadAll(null, null);
+                
+                // 等待10秒
+                await Task.Delay(5000);
+                
+                // 执行导出
+                ExportMeshMaterialMapping_Click(null, null);
+            }
+        });
     }
 
     private void OnGridSplitterDoubleClick(object sender, MouseButtonEventArgs e)
@@ -125,6 +135,10 @@ public partial class MainWindow
             LeftTabControl.SelectedIndex--;
         else if (UserSettings.Default.DirRightTab.IsTriggered(e.Key) && LeftTabControl.SelectedIndex < LeftTabControl.Items.Count - 1)
             LeftTabControl.SelectedIndex++;
+        // else if (_applicationView.Status.IsReady && e.Key == Key.M)
+        //     ExportMeshMaterialMapping_Click(null, null);
+        // else if (_applicationView.Status.IsReady && e.Key == Key.N)
+        //     OnLoadAll(null, null);
     }
 
     private void OnSearchViewClick(object sender, RoutedEventArgs e)
@@ -294,21 +308,13 @@ public partial class MainWindow
     {
         if (!_applicationView.Status.IsReady) return;
 
-        var saveFileDialog = new Microsoft.Win32.SaveFileDialog
-        {
-            Filter = "CSV files (*.csv)|*.csv",
-            DefaultExt = "csv",
-            FileName = "mesh_material_mapping.csv",
-            InitialDirectory = UserSettings.Default.ModelDirectory
-        };
+        var gameName = UserSettings.Default.CurrentDir.GameName;
+        var outputPath = System.IO.Path.Combine(UserSettings.Default.OutputDirectory, $"{gameName}_texture_match.csv");
 
-        if (saveFileDialog.ShowDialog() == true)
-        {
-            await _threadWorkerView.Begin(cancellationToken => 
-            { 
-                _applicationView.CUE4Parse.ExportMeshMaterialMapping(cancellationToken, saveFileDialog.FileName); 
-            });
-        }
+        await _threadWorkerView.Begin(cancellationToken => 
+        { 
+            _applicationView.CUE4Parse.ExportMeshMaterialMapping(cancellationToken, outputPath); 
+        });
     }
 
     private async void OnFolderMeshMaterialMappingClick(object sender, RoutedEventArgs e)
@@ -330,5 +336,21 @@ public partial class MainWindow
                 _applicationView.CUE4Parse.ExportFolderMeshMaterialMapping(cancellationToken, folder, saveFileDialog.FileName); 
             });
         }
+    }
+
+    private void OnLoadAll(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (!_applicationView.Status.IsReady) return;
+        
+        var listBox = DirectoryFilesListBox;
+        if (listBox == null) return;
+
+        UserSettings.Default.LoadingMode = ELoadingMode.All;
+        
+        // 确保在UI线程上执行
+        Dispatcher.Invoke(() =>
+        {
+            _applicationView.LoadingModes.LoadCommand.Execute(listBox.SelectedItems);
+        });
     }
 }
