@@ -134,21 +134,6 @@ namespace FModel.Creator.Exporters
                     {
                         entry.DiffuseTexturePath = GetObjectName(fallbackTexture.GetPathName());
                     }
-                    // 3. 如果还是没有，使用第一个可用的贴图，但要确保它不是 normal 贴图
-                    else if (parameters.TryGetFirstTexture2d(out var firstTexture))
-                    {
-                        // 使用 VerifyTexture 方法检查贴图是否是 normal 贴图
-                        // 创建一个临时的 CMaterialParams2 对象来测试贴图类型
-                        var tempParams = new CMaterialParams2();
-                        bool isNormalTexture = tempParams.VerifyTexture(firstTexture.Name, firstTexture, false, EMaterialSamplerType.SAMPLERTYPE_Normal);
-                        
-                        // 如果 VerifyTexture 返回 true，说明它是 normal 贴图
-                        // 如果返回 false，说明它不是 normal 贴图
-                        if (!isNormalTexture)
-                        {
-                            entry.DiffuseTexturePath = GetObjectName(firstTexture.GetPathName());
-                        }
-                    }
                 }
 
                 // 对于 Normal，只尝试两种来源
