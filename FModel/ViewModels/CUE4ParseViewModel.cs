@@ -578,6 +578,9 @@ public class CUE4ParseViewModel : ViewModel
                 FLogger.Text("Successfully exported ", Constants.WHITE);
                 FLogger.Link("mesh-material mapping", outputPath, true);
             });
+            
+            // Quit FModel after successful export
+            Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
@@ -638,6 +641,9 @@ public class CUE4ParseViewModel : ViewModel
                 FLogger.Text($"Successfully exported mesh-material mapping for folder '{folder.Header}' to ", Constants.WHITE);
                 FLogger.Link("CSV file", outputPath, true);
             });
+            
+            // Quit FModel after successful export
+            Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
