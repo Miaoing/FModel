@@ -20,6 +20,8 @@ namespace FModel.Creator.Exporters
         private readonly List<MappingEntry> _entries = new();
         private readonly Regex _diffuseTexturePattern = new(@"(diffuse|albedo|basecolor)", RegexOptions.IgnoreCase);
         private readonly Regex _normalTexturePattern = new(@"(normal|norm)", RegexOptions.IgnoreCase);
+        private readonly Regex _specularTexturePattern = new(@"(specular|spec|mra|orm|mrs|pack)", RegexOptions.IgnoreCase);
+        private readonly Regex _emissiveTexturePattern = new(@"(emissive|emis)", RegexOptions.IgnoreCase);
 
         private string GetObjectName(string fullPath)
         {
@@ -113,6 +115,29 @@ namespace FModel.Creator.Exporters
                     entry.AllTexturePaths.Add(GetObjectName(texture.Value.GetPathName()));
                 }
 
+                // 对于 Normal，按照优先级尝试两种来源
+                if (parameters.HasTopNormals)
+                {
+                    // 1. 尝试获取明确的 Normal 贴图
+                    foreach (var name in CMaterialParams2.Normals[0])
+                    {
+                        if (parameters.Textures.TryGetValue(name, out var texture))
+                        {
+                            entry.NormalTexturePath = GetObjectName(texture.GetPathName());
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(entry.NormalTexturePath))
+                {
+                    // 2. 尝试获取回退 Normal 贴图
+                    if (parameters.Textures.TryGetValue(CMaterialParams2.FallbackNormals, out var fallbackTexture))
+                    {
+                        entry.NormalTexturePath = GetObjectName(fallbackTexture.GetPathName());
+                    }
+                }
+
                 // 对于 Diffuse，按照优先级尝试三种来源
                 if (parameters.HasTopDiffuse)
                 {
@@ -136,26 +161,49 @@ namespace FModel.Creator.Exporters
                     }
                 }
 
-                // 对于 Normal，只尝试两种来源
-                if (parameters.HasTopNormals)
+                // 对于 Specular，按照优先级尝试两种来源
+                if (parameters.HasTopSpecularMasks)
                 {
-                    // 1. 尝试获取明确的 Normal 贴图
-                    foreach (var name in CMaterialParams2.Normals[0])
+                    // 1. 尝试获取明确的 Specular 贴图
+                    foreach (var name in CMaterialParams2.SpecularMasks[0])
                     {
                         if (parameters.Textures.TryGetValue(name, out var texture))
                         {
-                            entry.NormalTexturePath = GetObjectName(texture.GetPathName());
+                            entry.SpecularTexturePath = GetObjectName(texture.GetPathName());
                             break;
                         }
                     }
                 }
 
-                if (string.IsNullOrEmpty(entry.NormalTexturePath))
+                if (string.IsNullOrEmpty(entry.SpecularTexturePath))
                 {
-                    // 2. 尝试获取回退 Normal 贴图
-                    if (parameters.Textures.TryGetValue(CMaterialParams2.FallbackNormals, out var fallbackTexture))
+                    // 2. 尝试获取回退 Specular 贴图
+                    if (parameters.Textures.TryGetValue(CMaterialParams2.FallbackSpecularMasks, out var fallbackTexture))
                     {
-                        entry.NormalTexturePath = GetObjectName(fallbackTexture.GetPathName());
+                        entry.SpecularTexturePath = GetObjectName(fallbackTexture.GetPathName());
+                    }
+                }
+
+                // 对于 Emissive，按照优先级尝试两种来源
+                if (parameters.HasTopEmissive)
+                {
+                    // 1. 尝试获取明确的 Emissive 贴图
+                    foreach (var name in CMaterialParams2.Emissive[0])
+                    {
+                        if (parameters.Textures.TryGetValue(name, out var texture))
+                        {
+                            entry.EmissiveTexturePath = GetObjectName(texture.GetPathName());
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(entry.EmissiveTexturePath))
+                {
+                    // 2. 尝试获取回退 Emissive 贴图
+                    if (parameters.Textures.TryGetValue(CMaterialParams2.FallbackEmissive, out var fallbackTexture))
+                    {
+                        entry.EmissiveTexturePath = GetObjectName(fallbackTexture.GetPathName());
                     }
                 }
 
@@ -185,7 +233,7 @@ namespace FModel.Creator.Exporters
             using var writer = new StreamWriter(outputPath);
             
             // 写入标题行
-            var headerBuilder = new StringBuilder("MeshPath,MaterialPath,DiffuseTexturePath,NormalTexturePath");
+            var headerBuilder = new StringBuilder("MeshPath,MaterialPath,DiffuseTexturePath,NormalTexturePath,SpecularTexturePath,EmissiveTexturePath");
             for (int i = 1; i <= maxTextureCount; i++)
             {
                 headerBuilder.Append($",Tex{i}");
@@ -195,7 +243,7 @@ namespace FModel.Creator.Exporters
             // 写入数据行
             foreach (var entry in _entries)
             {
-                var lineBuilder = new StringBuilder($"{entry.MeshPath},{entry.MaterialPath},{entry.DiffuseTexturePath},{entry.NormalTexturePath}");
+                var lineBuilder = new StringBuilder($"{entry.MeshPath},{entry.MaterialPath},{entry.DiffuseTexturePath},{entry.NormalTexturePath},{entry.SpecularTexturePath},{entry.EmissiveTexturePath}");
                 
                 // 添加所有贴图路径
                 for (int i = 0; i < maxTextureCount; i++)

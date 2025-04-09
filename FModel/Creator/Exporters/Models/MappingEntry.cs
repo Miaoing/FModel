@@ -9,6 +9,8 @@ namespace FModel.Creator.Exporters.Models
         public string MaterialPath { get; set; }
         public string DiffuseTexturePath { get; set; }
         public string NormalTexturePath { get; set; }
+        public string SpecularTexturePath { get; set; }
+        public string EmissiveTexturePath { get; set; }
         public List<string> AllTexturePaths { get; set; } = new List<string>();
     }
 } 
