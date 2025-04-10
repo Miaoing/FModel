@@ -579,8 +579,8 @@ public class CUE4ParseViewModel : ViewModel
                 FLogger.Link("mesh-material mapping", outputPath, true);
             });
             
-            // Quit FModel after successful export
-            Application.Current.Shutdown();
+            // Quit FModel after successful export - ensure it happens on UI thread
+            Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
         }
         catch (Exception ex)
         {
@@ -642,8 +642,8 @@ public class CUE4ParseViewModel : ViewModel
                 FLogger.Link("CSV file", outputPath, true);
             });
             
-            // Quit FModel after successful export
-            Application.Current.Shutdown();
+            // Quit FModel after successful export - ensure it happens on UI thread
+            Application.Current.Dispatcher.Invoke(() => Application.Current.Shutdown());
         }
         catch (Exception ex)
         {
