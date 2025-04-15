@@ -107,7 +107,7 @@ namespace FModel.Creator.Exporters
                 };
 
                 var parameters = new CMaterialParams2();
-                material.GetParams(parameters, EMaterialFormat.FirstLayer);
+                material.GetParams(parameters, EMaterialFormat.AllLayers);
 
                 // 收集所有贴图路径
                 foreach (var texture in parameters.Textures)
