@@ -246,11 +246,12 @@ namespace FModel.Creator.Exporters
                 var lineBuilder = new StringBuilder($"{entry.MeshPath},{entry.MaterialPath},{entry.DiffuseTexturePath},{entry.NormalTexturePath},{entry.SpecularTexturePath},{entry.EmissiveTexturePath}");
                 
                 // 添加所有贴图路径
+                var texturePaths = entry.AllTexturePaths.ToList();  // 将 HashSet 转换为 List
                 for (int i = 0; i < maxTextureCount; i++)
                 {
-                    if (i < entry.AllTexturePaths.Count)
+                    if (i < texturePaths.Count)
                     {
-                        lineBuilder.Append($",{entry.AllTexturePaths[i]}");
+                        lineBuilder.Append($",{texturePaths[i]}");
                     }
                     else
                     {
