@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -13,6 +14,7 @@ using FModel.ViewModels;
 using FModel.Views;
 using FModel.Views.Resources.Controls;
 using ICSharpCode.AvalonEdit.Editing;
+using TextureProcessing;
 
 namespace FModel;
 
@@ -82,24 +84,24 @@ public partial class MainWindow
             })
         ).ConfigureAwait(false);
 
-        // 等待额外的2秒确保完全加载
-        await Task.Delay(2000);
+        //// 等待额外的2秒确保完全加载
+        //await Task.Delay(2000);
 
-        // 确保在UI线程上执行
-        await Dispatcher.InvokeAsync(async () =>
-        {
-            // 执行LoadAll
-            if (_applicationView.Status.IsReady)
-            {
-                OnLoadAll(null, null);
+        //// 确保在UI线程上执行
+        //await Dispatcher.InvokeAsync(async () =>
+        //{
+        //    // 执行LoadAll
+        //    if (_applicationView.Status.IsReady)
+        //    {
+        //        OnLoadAll(null, null);
                 
-                // 等待10秒
-                await Task.Delay(5000);
+        //        // 等待10秒
+        //        await Task.Delay(5000);
                 
-                // 执行导出
-                ExportMeshMaterialMapping_Click(null, null);
-            }
-        });
+        //        // 执行导出
+        //        ExportMeshMaterialMapping_Click(null, null);
+        //    }
+        //});
     }
 
     private void OnGridSplitterDoubleClick(object sender, MouseButtonEventArgs e)
@@ -254,6 +256,36 @@ public partial class MainWindow
         }
     }
 
+    private async void OnFolderClassifyMaterialClick(object sender, RoutedEventArgs e)
+    {
+        if (AssetsFolderName.SelectedItem is not TreeItem folder) return;
+
+        var processor = new TextureProcessorCaller(@"C:\Users\iristtzhou\Documents\workspace\dist\texture_processor.exe");
+        var exportPath = Path.Combine(UserSettings.Default.TextureDirectory, folder.PathAtThisPoint);
+        var modelPath = @"C:\Users\iristtzhou\Documents\workspace\dist\texture_classifier_20250402_115423.joblib";
+
+        await _threadWorkerView.Begin(async cancellationToken =>
+        {
+            var result = await processor.ProcessTexturesAsync(exportPath, modelPath);
+            if (result.Success)
+            {
+                FLogger.Append(ELog.Information, () =>
+                {
+                    FLogger.Text("Successfully classified materials in ", Constants.WHITE);
+                    FLogger.Link(folder.PathAtThisPoint, exportPath, true);
+                });
+            }
+            else
+            {
+                FLogger.Append(ELog.Error, () =>
+                {
+                    FLogger.Text("Failed to classify materials: ", Constants.WHITE);
+                    FLogger.Text(result.Error, Constants.RED);
+                });
+            }
+        });
+    }
+
     private void OnFavoriteDirectoryClick(object sender, RoutedEventArgs e)
     {
         if (AssetsFolderName.SelectedItem is not TreeItem folder) return;
@@ -332,7 +364,7 @@ public partial class MainWindow
         if (saveFileDialog.ShowDialog() == true)
         {
             await _threadWorkerView.Begin(cancellationToken => 
-            { 
+            {
                 _applicationView.CUE4Parse.ExportFolderMeshMaterialMapping(cancellationToken, folder, saveFileDialog.FileName); 
             });
         }
